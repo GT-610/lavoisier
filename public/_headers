@@ -1,0 +1,13 @@
+# Baseline security headers for the static site.
+# The simulation is entirely client-side: no third-party origins, no framing.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+# Hashed build assets are immutable; everything else revalidates.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -1,0 +1,11 @@
+#:schema ./node_modules/wrangler/config-schema.json
+
+# Cloudflare Pages project configuration.
+# `name` becomes the <name>.pages.dev subdomain unless a custom domain is bound.
+name = "lavoisier"
+compatibility_date = "2025-01-01"
+
+# Vite writes the production build here; Pages serves this directory as the
+# site root. The key is what tells Wrangler this is a Pages project rather
+# than a Worker.
+pages_build_output_dir = "./dist"

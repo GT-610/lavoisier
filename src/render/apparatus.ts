@@ -322,13 +322,16 @@ function drawGlassOverlay(ctx: CanvasRenderingContext2D, kind: ApparatusKind, w:
     }
   }
 
+  // Lip rim across the actual mouth, not the full silhouette width: a flask's
+  // neck is much narrower than its body, while a test tube and a funnel really
+  // are as wide at the top as they are overall.
   if (kind === 'test-tube' || kind === 'flask' || kind === 'funnel') {
-    // Lip rim.
+    const halfMouth = kind === 'flask' ? w * 0.17 : hw
     ctx.strokeStyle = 'rgba(220, 240, 255, 0.5)'
     ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(-hw, -hh)
-    ctx.lineTo(hw, -hh)
+    ctx.moveTo(-halfMouth, -hh)
+    ctx.lineTo(halfMouth, -hh)
     ctx.stroke()
   }
 }

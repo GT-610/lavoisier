@@ -1,0 +1,8 @@
+# Cloudflare Pages serves any matching static asset before applying these rules,
+# so hashed JS/CSS under /assets/ is unaffected.
+#
+# This project ships no top-level 404.html, which already makes Pages fall back
+# to the SPA behaviour described in the docs. The rule below states that intent
+# explicitly so a future 404.html cannot silently change routing.
+/*
+  /index.html  200
