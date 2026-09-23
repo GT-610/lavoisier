@@ -139,13 +139,21 @@ export const REACTION_RULES: ReactionRule[] = [
     equation: 'CaCO₃ + H₂SO₄ → CaSO₄ + H₂O + CO₂↑',
     reactants: ['caco3', 'h2so4'],
     products: ['water', 'co2'],
+    /**
+     * The one rule that genuinely needs stirring. Calcium sulfate is only
+     * sparingly soluble and immediately coats the limestone surface, so the
+     * reaction stalls unless a glass rod keeps sweeping fresh CaCO₃ into the
+     * acid. This is why sulfuric acid is a poor choice for making CO₂ in the
+     * lab, and it is the rule that exercises the `stir` gate.
+     */
+    conditions: { stir: true },
     rate: 1.2,
     priority: 72,
     effects: {
       gas: { reagentId: 'co2', label: 'CO₂', color: '#bcc6d2', amount: 1, intensity: 1.2 },
       temperatureDelta: 0.5,
     },
-    description: '反应较快停止，因为生成的硫酸钙微溶并覆盖在固体表面。',
+    description: '生成的硫酸钙微溶并覆盖在固体表面，需要不断搅拌才能继续反应。',
   },
 
   /* ---------------------------------------------------------------------- */
