@@ -689,6 +689,95 @@ export const REACTION_RULES: ReactionRule[] = [
     },
     description: '紫色晶体受热分解，放出氧气并留下黑色残渣。',
   },
+
+  /* ---------------------------------------------------------------------- */
+  /*  Preparations that reach the remaining catalogue entries                 */
+  /* ---------------------------------------------------------------------- */
+  {
+    id: 'cu-conc-h2so4',
+    name: '铜与浓硫酸反应',
+    equation: 'Cu + 2H₂SO₄(浓) --Δ--> CuSO₄ + SO₂↑ + 2H₂O',
+    reactants: ['cu', 'h2so4-conc'],
+    products: ['cuso4', 'so2', 'water'],
+    conditions: { heat: true },
+    rate: 1.2,
+    priority: 88,
+    effects: {
+      gas: { reagentId: 'so2', label: 'SO₂', color: '#e3e08a', amount: 1, intensity: 0.9 },
+      temperatureDelta: 1.6,
+    },
+    description: '铜在浓硫酸中受热溶解，溶液变蓝并放出刺激性气味的二氧化硫。',
+  },
+  {
+    id: 'mno2-conc-hcl',
+    name: '二氧化锰与浓盐酸共热',
+    equation: 'MnO₂ + 4HCl(浓) --Δ--> MnCl₂ + Cl₂↑ + 2H₂O',
+    reactants: ['mno2', 'hcl-conc'],
+    products: ['cl2', 'water'],
+    conditions: { heat: true },
+    rate: 1.1,
+    priority: 88,
+    effects: {
+      gas: { reagentId: 'cl2', label: 'Cl₂', color: '#c9d94a', amount: 1, intensity: 1.1 },
+      temperatureDelta: 1.2,
+    },
+    description: '共热时产生黄绿色有刺激性气味的氯气，是实验室制氯气的方法。',
+  },
+  {
+    id: 'na2s2o3-hcl',
+    name: '硫代硫酸钠与稀盐酸反应',
+    equation: 'Na₂S₂O₃ + 2HCl → 2NaCl + S↓ + SO₂↑ + H₂O',
+    reactants: ['na2s2o3', 'hcl'],
+    products: ['nacl', 's', 'so2', 'water'],
+    rate: 2,
+    priority: 84,
+    effects: {
+      gas: { reagentId: 'so2', label: 'SO₂', color: '#e3e08a', amount: 1, intensity: 0.8 },
+      precipitate: { reagentId: 's', amount: 1 },
+      temperatureDelta: 0.4,
+    },
+    description: '溶液迅速变浑浊并析出淡黄色硫单质，同时放出二氧化硫。',
+  },
+  {
+    id: 'bacl2-h2so4',
+    name: '氯化钡与硫酸根反应',
+    equation: 'BaCl₂ + H₂SO₄ → BaSO₄↓ + 2HCl',
+    reactants: ['bacl2', 'h2so4'],
+    products: ['baso4', 'hcl'],
+    rate: 3,
+    priority: 86,
+    effects: {
+      precipitate: { reagentId: 'baso4', amount: 1 },
+    },
+    description: '立即生成不溶于稀硝酸的白色沉淀，是检验硫酸根离子的方法。',
+  },
+  {
+    id: 'bacl2-na2co3',
+    name: '氯化钡与碳酸钠反应',
+    equation: 'BaCl₂ + Na₂CO₃ → BaCO₃↓ + 2NaCl',
+    reactants: ['bacl2', 'na2co3'],
+    products: ['baco3', 'nacl'],
+    rate: 3,
+    priority: 86,
+    effects: {
+      precipitate: { reagentId: 'baco3', amount: 1 },
+    },
+    description: '生成白色碳酸钡沉淀，可溶于稀盐酸并放出二氧化碳。',
+  },
+  {
+    id: 'baco3-hcl',
+    name: '碳酸钡溶于稀盐酸',
+    equation: 'BaCO₃ + 2HCl → BaCl₂ + H₂O + CO₂↑',
+    reactants: ['baco3', 'hcl'],
+    products: ['bacl2', 'water', 'co2'],
+    rate: 2,
+    priority: 84,
+    effects: {
+      gas: { reagentId: 'co2', label: 'CO₂', color: '#bcc6d2', amount: 1, intensity: 1.4 },
+      temperatureDelta: 0.5,
+    },
+    description: '白色沉淀逐渐溶解并产生气泡，说明它能溶于酸。',
+  },
 ]
 
 /**

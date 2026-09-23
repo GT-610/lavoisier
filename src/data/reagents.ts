@@ -44,6 +44,50 @@ export const REAGENTS: Reagent[] = [
     note: '强酸，浓硫酸兼具脱水性与氧化性。',
   },
   {
+    id: 'h2so4-conc',
+    name: '浓硫酸',
+    formula: 'H₂SO₄(浓)',
+    color: '#e8dfb4',
+    colorStrength: 0.12,
+    phase: 'liquid',
+    tags: ['acid', 'oxidizer'],
+    role: 'reagent',
+    note: '具强氧化性，加热时能氧化铜这类不活泼金属。',
+  },
+  {
+    id: 'hcl-conc',
+    name: '浓盐酸',
+    formula: 'HCl(浓)',
+    color: '#d6e49e',
+    colorStrength: 0.12,
+    phase: 'liquid',
+    tags: ['acid', 'reducing-agent'],
+    role: 'reagent',
+    note: '易挥发，与二氧化锰共热可制取氯气。',
+  },
+  {
+    id: 'bacl2',
+    name: '氯化钡溶液',
+    formula: 'BaCl₂',
+    color: '#e4ecf0',
+    colorStrength: 0.07,
+    phase: 'liquid',
+    tags: ['salt'],
+    role: 'reagent',
+    note: '用于检验硫酸根离子，生成不溶于稀硝酸的白色沉淀。',
+  },
+  {
+    id: 'na2s2o3',
+    name: '硫代硫酸钠溶液',
+    formula: 'Na₂S₂O₃',
+    color: '#e6eef0',
+    colorStrength: 0.07,
+    phase: 'liquid',
+    tags: ['salt', 'reducing-agent'],
+    role: 'reagent',
+    note: '遇酸分解，析出淡黄色硫单质并放出二氧化硫。',
+  },
+  {
     id: 'naoh',
     name: '氢氧化钠溶液',
     formula: 'NaOH',
@@ -358,6 +402,17 @@ export const REAGENTS: Reagent[] = [
 
   /* -------------------------------- precipitates ----------------------------- */
   {
+    id: 'baso4',
+    name: '硫酸钡沉淀',
+    formula: 'BaSO₄',
+    color: '#f6f5ef',
+    colorStrength: 1,
+    phase: 'solid',
+    tags: ['salt'],
+    role: 'product',
+    note: '白色沉淀，不溶于稀硝酸，是检验硫酸根离子的依据。',
+  },
+  {
     id: 'agcl',
     name: '氯化银沉淀',
     formula: 'AgCl',
@@ -579,11 +634,11 @@ export const REAGENT_MAP: Record<string, Reagent> = Object.fromEntries(
 export const SHELF_GROUPS: { title: string; ids: string[] }[] = [
   {
     title: '常见酸',
-    ids: ['hcl', 'h2so4'],
+    ids: ['hcl', 'hcl-conc', 'h2so4', 'h2so4-conc'],
   },
   {
     title: '碱与盐溶液',
-    ids: ['naoh', 'caoh2-solution', 'cuso4', 'feso4', 'agno3', 'ki'],
+    ids: ['naoh', 'caoh2-solution', 'cuso4', 'feso4', 'agno3', 'ki', 'bacl2', 'na2s2o3'],
   },
   {
     title: '指示剂与溶剂',
