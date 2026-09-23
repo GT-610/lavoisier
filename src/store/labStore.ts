@@ -5,12 +5,18 @@
  * Zustand store per workspace and juggling a store registry, the bench state
  * for *every* workspace lives in a single store under `workspaces[id]`.
  *
- * Why: a single store keeps import/export, undo-friendly snapshots and the
- * simulation loop trivial, while isolation is still guaranteed because every
- * action is keyed by `workspaceId` and every selector is scoped to one id.
- * Components subscribe through `useWorkspace(selector)` which closes over the
- * active id, so switching benches re-renders only what changed — the same
- * behaviour a per-instance store factory would give, without the registry.
+ * Why: a single store keeps import/export and snapshot handling trivial, while
+ * isolation is still guaranteed because every action is keyed by `workspaceId`
+ * and every selector is scoped to one id. Components subscribe through
+ * `useWorkspace(selector)` which closes over the active id, so switching
+ * benches only re-renders what actually changed — the same behaviour a
+ * per-instance store factory would give, without the registry.
+ *
+ * Write path: user actions (place, dose, clear, import) mutate the store
+ * directly and bump `contentsRevision`. The simulation engine keeps a private
+ * mirror of every vessel and only writes back through `commitSimulation`, which
+ * deliberately does *not* bump the revision. That single rule is what keeps the
+ * 60 fps engine and React state from fighting over the same numbers.
  */
 import { create } from 'zustand'
 
@@ -22,6 +28,7 @@ import type {
   LogEntry,
   LogLevel,
   Reagent,
+  SimulationPatch,
   Workspace,
   WorkspaceSnapshot,
 } from '@/types'
@@ -67,24 +74,9 @@ export interface LabState {
     reagentId: string,
     amount: number,
   ) => void
-  /** Removes `amount` units of one reagent; used by the reaction engine. */
-  consumeReagent: (
-    workspaceId: string,
-    apparatusId: string,
-    reagentId: string,
-    amount: number,
-  ) => void
 
   /* --------------------------- simulation commit --------------------------- */
-  /**
-   * Batched write-back from the simulation loop. Called at a low frequency
-   * (a few times per second) so that per-frame particle work never touches
-   * React state.
-   */
-  commitSimulation: (
-    workspaceId: string,
-    patches: { id: string; temperature?: number; mixtureColor?: string | null; mixtureOpacity?: number }[],
-  ) => void
+  commitSimulation: (workspaceId: string, patches: SimulationPatch[], logs: LogEntry[]) => void
 
   /* --------------------------------- logging ------------------------------- */
   log: (workspaceId: string, level: LogLevel, text: string) => void
@@ -124,10 +116,11 @@ function createWorkspace(name: string): Workspace {
     apparatus: [],
     selectedId: null,
     log: [],
+    contentsRevision: 0,
   }
 }
 
-function createLogEntry(level: LogLevel, text: string): LogEntry {
+export function createLogEntry(level: LogLevel, text: string): LogEntry {
   return { id: uid('log'), at: Date.now(), level, text }
 }
 
@@ -136,7 +129,7 @@ function createLogEntry(level: LogLevel, text: string): LogEntry {
  * Called after every content mutation so the renderer never has to blend
  * colours on the hot path.
  */
-function recomputeMixture(apparatus: Apparatus): Apparatus {
+export function recomputeMixture(apparatus: Apparatus): Apparatus {
   const visible = apparatus.contents.filter((content) => {
     const reagent = REAGENT_MAP[content.reagentId]
     return reagent && reagent.phase !== 'gas' && content.amount > 0
@@ -151,7 +144,7 @@ function recomputeMixture(apparatus: Apparatus): Apparatus {
     }),
   )
   const total = visible.reduce((sum, content) => sum + content.amount, 0)
-  // A fuller vessel reads as more opaque, capped so glass stays visible.
+  // A fuller vessel reads as more opaque, capped so the glass stays visible.
   const strength = visible.reduce((sum, content) => {
     const reagent = REAGENT_MAP[content.reagentId]
     return sum + content.amount * reagent.colorStrength
@@ -169,18 +162,22 @@ function patchApparatus(
 ): Partial<LabState> {
   const workspace = state.workspaces[workspaceId]
   if (!workspace) return {}
-  let changed = false
-  const apparatus = workspace.apparatus.map((item) => {
-    if (item.id !== apparatusId) return item
-    changed = true
-    return patch(item)
-  })
-  if (!changed) return {}
+  const apparatus = workspace.apparatus.map((item) =>
+    item.id === apparatusId ? patch(item) : item,
+  )
   return {
     workspaces: {
       ...state.workspaces,
       [workspaceId]: { ...workspace, apparatus },
     },
+  }
+}
+
+/** Replace a workspace, appending a log line and honouring the log cap. */
+function withLog(workspace: Workspace, level: LogLevel, text: string): Workspace {
+  return {
+    ...workspace,
+    log: [...workspace.log, createLogEntry(level, text)].slice(-LOG_LIMIT),
   }
 }
 
@@ -234,6 +231,7 @@ export const useLabStore = create<LabState>()((set, get) => ({
 
   deleteWorkspace: (id) => {
     const state = get()
+    // Deleting the last bench would leave the UI with nothing to render.
     if (state.order.length <= 1) return
     const { [id]: _removed, ...rest } = state.workspaces
     const order = state.order.filter((item) => item !== id)
@@ -266,15 +264,11 @@ export const useLabStore = create<LabState>()((set, get) => ({
     set({
       workspaces: {
         ...state.workspaces,
-        [workspaceId]: {
-          ...workspace,
-          apparatus: [...workspace.apparatus, apparatus],
-          selectedId: apparatus.id,
-          log: [
-            ...workspace.log,
-            createLogEntry('info', `放置了${def.name}。`),
-          ].slice(-LOG_LIMIT),
-        },
+        [workspaceId]: withLog(
+          { ...workspace, apparatus: [...workspace.apparatus, apparatus], selectedId: apparatus.id },
+          'info',
+          `放置了${def.name}。`,
+        ),
       },
     })
     return apparatus.id
@@ -287,7 +281,7 @@ export const useLabStore = create<LabState>()((set, get) => ({
     set((state) =>
       patchApparatus(state, workspaceId, id, (item) => ({
         ...item,
-        // Keep the stored angle in [0, 360) so exports stay readable.
+        // Keep the stored angle in [0, 360) so exported files stay readable.
         rotation: ((rotation % 360) + 360) % 360,
       })),
     ),
@@ -298,16 +292,18 @@ export const useLabStore = create<LabState>()((set, get) => ({
     if (!workspace) return
     const target = workspace.apparatus.find((item) => item.id === id)
     if (!target) return
-    const name = getApparatusDef(target.kind).name
     set({
       workspaces: {
         ...state.workspaces,
-        [workspaceId]: {
-          ...workspace,
-          apparatus: workspace.apparatus.filter((item) => item.id !== id),
-          selectedId: workspace.selectedId === id ? null : workspace.selectedId,
-          log: [...workspace.log, createLogEntry('info', `移除了${name}。`)].slice(-LOG_LIMIT),
-        },
+        [workspaceId]: withLog(
+          {
+            ...workspace,
+            apparatus: workspace.apparatus.filter((item) => item.id !== id),
+            selectedId: workspace.selectedId === id ? null : workspace.selectedId,
+          },
+          'info',
+          `移除了${getApparatusDef(target.kind).name}。`,
+        ),
       },
     })
   },
@@ -328,20 +324,17 @@ export const useLabStore = create<LabState>()((set, get) => ({
     const target = workspace.apparatus.find((item) => item.id === id)
     if (!target || !getApparatusDef(target.kind).emitsHeat) return
     const lit = !target.lit
-    const next = patchApparatus(state, workspaceId, id, (item) => ({ ...item, lit })) as {
+    const patched = patchApparatus(state, workspaceId, id, (item) => ({ ...item, lit })) as {
       workspaces: Record<string, Workspace>
     }
-    const updated = next.workspaces[workspaceId]
     set({
       workspaces: {
-        ...next.workspaces,
-        [workspaceId]: {
-          ...updated,
-          log: [
-            ...updated.log,
-            createLogEntry('info', lit ? '点燃了酒精灯。' : '熄灭了酒精灯。'),
-          ].slice(-LOG_LIMIT),
-        },
+        ...patched.workspaces,
+        [workspaceId]: withLog(
+          patched.workspaces[workspaceId],
+          'info',
+          lit ? '点燃了酒精灯。' : '熄灭了酒精灯。',
+        ),
       },
     })
   },
@@ -353,15 +346,17 @@ export const useLabStore = create<LabState>()((set, get) => ({
     set({
       workspaces: {
         ...state.workspaces,
-        [workspaceId]: {
-          ...workspace,
-          apparatus: workspace.apparatus.map((item) =>
-            item.id === id
-              ? recomputeMixture({ ...item, contents: [], temperature: 22 })
-              : item,
-          ),
-          log: [...workspace.log, createLogEntry('info', '清空了容器。')].slice(-LOG_LIMIT),
-        },
+        [workspaceId]: withLog(
+          {
+            ...workspace,
+            apparatus: workspace.apparatus.map((item) =>
+              item.id === id ? recomputeMixture({ ...item, contents: [], temperature: 22 }) : item,
+            ),
+            contentsRevision: workspace.contentsRevision + 1,
+          },
+          'info',
+          '清空了容器。',
+        ),
       },
     })
   },
@@ -382,19 +377,17 @@ export const useLabStore = create<LabState>()((set, get) => ({
       set({
         workspaces: {
           ...state.workspaces,
-          [workspaceId]: {
-            ...workspace,
-            log: [
-              ...workspace.log,
-              createLogEntry('warn', `${def.name}已经装满了，无法继续加入${reagent.name}。`),
-            ].slice(-LOG_LIMIT),
-          },
+          [workspaceId]: withLog(
+            workspace,
+            'warn',
+            `${def.name}已经装满了，无法继续加入${reagent.name}。`,
+          ),
         },
       })
       return
     }
-    const accepted = Math.min(amount, def.capacity - total)
 
+    const accepted = Math.min(amount, def.capacity - total)
     const existing = target.contents.find((content) => content.reagentId === reagentId)
     const contents: ApparatusContent[] = existing
       ? target.contents.map((content) =>
@@ -404,65 +397,58 @@ export const useLabStore = create<LabState>()((set, get) => ({
         )
       : [...target.contents, { reagentId, amount: accepted }]
 
-    const unit = reagent.phase === 'solid' ? 'g' : 'mL'
-    const next = patchApparatus(state, workspaceId, apparatusId, (item) =>
+    const patched = patchApparatus(state, workspaceId, apparatusId, (item) =>
       recomputeMixture({ ...item, contents }),
     ) as { workspaces: Record<string, Workspace> }
-    const updated = next.workspaces[workspaceId]
+
+    const unit = reagent.phase === 'solid' ? 'g' : 'mL'
     set({
       workspaces: {
-        ...next.workspaces,
-        [workspaceId]: {
-          ...updated,
-          log: [
-            ...updated.log,
-            createLogEntry(
-              'info',
-              `向${def.name}中加入了 ${accepted.toFixed(1)} ${unit} ${reagent.name}（${reagent.formula}）。`,
-            ),
-          ].slice(-LOG_LIMIT),
-        },
+        ...patched.workspaces,
+        [workspaceId]: withLog(
+          {
+            ...patched.workspaces[workspaceId],
+            contentsRevision: workspace.contentsRevision + 1,
+          },
+          'info',
+          `向${def.name}中加入了 ${accepted.toFixed(1)} ${unit} ${reagent.name}（${reagent.formula}）。`,
+        ),
       },
     })
   },
 
-  consumeReagent: (workspaceId, apparatusId, reagentId, amount) =>
-    set((state) =>
-      patchApparatus(state, workspaceId, apparatusId, (item) => {
-        const contents = item.contents
-          .map((content) =>
-            content.reagentId === reagentId
-              ? { ...content, amount: Math.max(0, content.amount - amount) }
-              : content,
-          )
-          .filter((content) => content.amount > 0.0001)
-        return recomputeMixture({ ...item, contents })
-      }),
-    ),
-
   /* --------------------------- simulation commit --------------------------- */
-  commitSimulation: (workspaceId, patches) => {
-    if (patches.length === 0) return
+  commitSimulation: (workspaceId, patches, logs) => {
+    if (patches.length === 0 && logs.length === 0) return
     const state = get()
     const workspace = state.workspaces[workspaceId]
     if (!workspace) return
+
     const index = new Map(patches.map((patch) => [patch.id, patch]))
+    const apparatus = workspace.apparatus.map((item) => {
+      const patch = index.get(item.id)
+      if (!patch) return item
+      return {
+        ...item,
+        temperature: patch.temperature,
+        mixtureColor: patch.mixtureColor,
+        mixtureOpacity: patch.mixtureOpacity,
+        contents: patch.contents,
+      }
+    })
+
+    // `contentsRevision` is intentionally left untouched: this write came from
+    // the engine, so the engine's mirror is already the newer truth.
     set({
       workspaces: {
         ...state.workspaces,
         [workspaceId]: {
           ...workspace,
-          apparatus: workspace.apparatus.map((item) => {
-            const patch = index.get(item.id)
-            if (!patch) return item
-            return {
-              ...item,
-              temperature: patch.temperature ?? item.temperature,
-              mixtureColor:
-                patch.mixtureColor === undefined ? item.mixtureColor : patch.mixtureColor,
-              mixtureOpacity: patch.mixtureOpacity ?? item.mixtureOpacity,
-            }
-          }),
+          apparatus,
+          log:
+            logs.length > 0
+              ? [...workspace.log, ...logs].slice(-LOG_LIMIT)
+              : workspace.log,
         },
       },
     })
@@ -474,15 +460,12 @@ export const useLabStore = create<LabState>()((set, get) => ({
     const workspace = state.workspaces[workspaceId]
     if (!workspace) return
     const last = workspace.log[workspace.log.length - 1]
-    // Reactions repeat every frame; collapse identical consecutive lines.
+    // Reactions repeat every tick; collapse identical consecutive lines.
     if (last && last.text === text) return
     set({
       workspaces: {
         ...state.workspaces,
-        [workspaceId]: {
-          ...workspace,
-          log: [...workspace.log, createLogEntry(level, text)].slice(-LOG_LIMIT),
-        },
+        [workspaceId]: withLog(workspace, level, text),
       },
     })
   },
@@ -515,16 +498,16 @@ export const useLabStore = create<LabState>()((set, get) => ({
     // hand-edited file cannot poison the simulation.
     const apparatus = source.apparatus.flatMap((item) => {
       if (!item || typeof item.kind !== 'string') return []
+      let def
       try {
-        getApparatusDef(item.kind)
+        def = getApparatusDef(item.kind)
       } catch {
         return []
       }
-      const def = getApparatusDef(item.kind)
       const built = createApparatus(
         item.kind,
-        Number.isFinite(item.x) ? item.x : 200,
-        Number.isFinite(item.y) ? item.y : 200,
+        Number.isFinite(item.x) ? item.x : 240,
+        Number.isFinite(item.y) ? item.y : 260,
       )
       const contents = (item.contents ?? []).filter(
         (content) => content && REAGENT_MAP[content.reagentId] && content.amount > 0,
@@ -532,7 +515,7 @@ export const useLabStore = create<LabState>()((set, get) => ({
       return [
         recomputeMixture({
           ...built,
-          id: typeof item.id === 'string' ? item.id : built.id,
+          id: typeof item.id === 'string' && item.id ? item.id : built.id,
           rotation: Number.isFinite(item.rotation) ? item.rotation : 0,
           temperature: Number.isFinite(item.temperature) ? item.temperature : 22,
           contents: contents.map((content) => ({
@@ -544,21 +527,22 @@ export const useLabStore = create<LabState>()((set, get) => ({
       ]
     })
 
+    const reagentCount = apparatus.reduce((sum, item) => sum + item.contents.length, 0)
     const workspace: Workspace = {
       id: uid('ws'),
-      name: typeof source.name === 'string' && source.name.trim() ? source.name.trim() : '导入的实验台',
+      name:
+        typeof source.name === 'string' && source.name.trim() ? source.name.trim() : '导入的实验台',
       createdAt: Date.now(),
       apparatus,
       selectedId: null,
       log: [
         createLogEntry(
           'info',
-          `已导入实验台，共恢复 ${apparatus.length} 件仪器与 ${apparatus.reduce(
-            (sum, item) => sum + item.contents.length,
-            0,
-          )} 项试剂。`,
+          `已导入实验台，共恢复 ${apparatus.length} 件仪器与 ${reagentCount} 项试剂。`,
         ),
       ],
+      // A fresh import must be picked up by the engine's mirror.
+      contentsRevision: 1,
     }
 
     set({
@@ -581,6 +565,7 @@ export const useLabStore = create<LabState>()((set, get) => ({
           apparatus: [],
           selectedId: null,
           log: [createLogEntry('info', '实验台已清空。')],
+          contentsRevision: workspace.contentsRevision + 1,
         },
       },
     })

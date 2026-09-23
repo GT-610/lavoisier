@@ -216,6 +216,30 @@ export interface Workspace {
   apparatus: Apparatus[]
   selectedId: string | null
   log: LogEntry[]
+  /**
+   * Bumped whenever a *user action* changes vessel contents (adding a reagent,
+   * clearing a vessel, importing a file).
+   *
+   * The simulation engine keeps its own mutable mirror of every vessel so the
+   * 60 fps hot path never touches React state. It compares this revision to
+   * decide whether the store holds newer contents than its mirror; the engine's
+   * own periodic write-back deliberately does *not* bump it, which is what
+   * stops the two from fighting over the same numbers.
+   */
+  contentsRevision: number
+}
+
+/**
+ * One vessel's authoritative state as produced by the simulation engine.
+ * `contents` is the full replacement list — the engine, not the component
+ * tree, decides how much of each reagent is left.
+ */
+export interface SimulationPatch {
+  id: string
+  temperature: number
+  mixtureColor: string | null
+  mixtureOpacity: number
+  contents: ApparatusContent[]
 }
 
 /* -------------------------------------------------------------------------- */
