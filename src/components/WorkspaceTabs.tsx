@@ -7,7 +7,8 @@
  */
 import { useEffect, useRef, useState } from 'react'
 
-import { Button, IconButton, cx } from '@/components/ui'
+import { Button, IconButton } from '@/components/ui'
+import { cx } from '@/utils/cx'
 import { disposeEngine } from '@/engine/useSimulation'
 import { useLabStore } from '@/store/labStore'
 import { useWorkspaceTabs } from '@/store/hooks'

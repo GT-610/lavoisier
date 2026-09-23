@@ -13,7 +13,6 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { getApparatusDef } from '@/data/reagents'
 import type { ReactionEngine } from '@/engine/reactionEngine'
 import { dragRef, hoverRef, useSimulation } from '@/engine/useSimulation'
 import { useDragStore } from '@/interaction/dragStore'
@@ -255,10 +254,5 @@ function CanvasLegend() {
       </ul>
     </div>
   )
-}
-
-/** Kept exported for the toolbar: names the instrument kinds on the bench. */
-export function describeApparatus(kind: Parameters<typeof getApparatusDef>[0]): string {
-  return getApparatusDef(kind).name
 }
 

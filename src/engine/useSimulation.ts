@@ -52,7 +52,13 @@ export interface UseSimulationOptions {
  */
 export function useSimulation({ canvasRef, onFrame }: UseSimulationOptions) {
   const frameCallback = useRef(onFrame)
-  frameCallback.current = onFrame
+
+  // Keep the latest callback in the ref *after* the render commits, never
+  // during it. The loop below reads the ref on each frame, so a new callback
+  // takes effect on the very next frame without restarting the loop.
+  useEffect(() => {
+    frameCallback.current = onFrame
+  }, [onFrame])
 
   useEffect(() => {
     let frame = 0

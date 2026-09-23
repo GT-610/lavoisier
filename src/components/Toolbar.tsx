@@ -7,7 +7,8 @@
  */
 import { useRef, useState } from 'react'
 
-import { Button, cx } from '@/components/ui'
+import { Button } from '@/components/ui'
+import { cx } from '@/utils/cx'
 import { useActiveWorkspaceId } from '@/store/hooks'
 import { createApparatus, createLogEntry, useLabStore } from '@/store/labStore'
 import type { Apparatus, LogLevel, Workspace, WorkspaceSnapshot } from '@/types'

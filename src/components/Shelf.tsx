@@ -9,7 +9,8 @@
 import { useMemo, useState } from 'react'
 
 import { ApparatusThumb } from '@/components/ApparatusThumb'
-import { Button, TextInput, cx } from '@/components/ui'
+import { Button, TextInput } from '@/components/ui'
+import { cx } from '@/utils/cx'
 import { APPARATUS_SHELF, getApparatusDef, SHELF_GROUPS, findReagent } from '@/data/reagents'
 import { useDragStore } from '@/interaction/dragStore'
 import { useLabStore } from '@/store/labStore'

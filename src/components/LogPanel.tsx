@@ -7,7 +7,8 @@
  */
 import { useEffect, useRef } from 'react'
 
-import { IconButton, Panel, cx } from '@/components/ui'
+import { IconButton, Panel } from '@/components/ui'
+import { cx } from '@/utils/cx'
 import { useActiveWorkspaceId, useWorkspace } from '@/store/hooks'
 import { useLabStore } from '@/store/labStore'
 import type { LogLevel } from '@/types'

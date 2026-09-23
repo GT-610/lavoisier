@@ -7,9 +7,7 @@
  */
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
 
-export function cx(...values: (string | false | null | undefined)[]): string {
-  return values.filter(Boolean).join(' ')
-}
+import { cx } from '@/utils/cx'
 
 /* -------------------------------------------------------------------------- */
 /*  Button                                                                     */

@@ -8,7 +8,8 @@
  */
 import { useMemo } from 'react'
 
-import { Badge, Button, Hint, IconButton, Panel, cx } from '@/components/ui'
+import { Badge, Button, Hint, IconButton, Panel } from '@/components/ui'
+import { cx } from '@/utils/cx'
 import { findReagent, getApparatusDef } from '@/data/reagents'
 import { REACTION_RULES } from '@/data/reactions'
 import { useLabStore } from '@/store/labStore'
