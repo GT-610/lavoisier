@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "A 2D high-freedom chemistry simulation sandbox for the web",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
