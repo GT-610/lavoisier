@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+/*
+ * Lavoisier design tokens.
+ * Tailwind v4 exposes every custom property below as a utility
+ * (e.g. `--color-lab-panel` -> `bg-lab-panel`, `text-lab-panel`).
+ */
+@theme {
+  --color-lab-void: #07090f;
+  --color-lab-bg: #0b0e16;
+  --color-lab-panel: #121724;
+  --color-lab-panel-2: #1a2032;
+  --color-lab-border: #26304a;
+  --color-lab-border-soft: #1d2438;
+  --color-lab-text: #e6ebf5;
+  --color-lab-muted: #8b96ad;
+  --color-lab-faint: #5d6880;
+  --color-lab-accent: #4fd1c5;
+  --color-lab-accent-soft: #1d4b4c;
+  --color-lab-warn: #f6ad55;
+  --color-lab-danger: #fc5c65;
+  --color-lab-gas: #9f7aea;
+  --color-lab-precipitate: #d9c27a;
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+
+  --radius-lab: 10px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-lab-void);
+    color: var(--color-lab-text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The canvas owns pointer gestures; never let the browser scroll/zoom it. */
+  canvas {
+    touch-action: none;
+    display: block;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-lab-border);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-lab-faint);
+  }
+}
+
+@utility lab-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-lab-border) transparent;
+}
+
+/* Subtle grid used as the laboratory bench surface. */
+@utility bench-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
